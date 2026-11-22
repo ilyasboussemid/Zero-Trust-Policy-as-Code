@@ -1,0 +1,63 @@
+{
+  "version": "1.0-zero-trust",
+  "defaultEffect": "DENY",
+  "tierQuotasBytes": {
+    "STANDARD": 52428800,
+    "PREMIUM": 524288000
+  },
+  "maxTtlHours": 24,
+  "policies": [
+    {
+      "id": "POL-META-CREATE-01",
+      "description": "Seul share-gateway-service (mTLS + JWT ROLE_ORCHESTRATOR) peut creer un partage dans les limites ABAC (STANDARD <= 50Mo, PREMIUM <= 500Mo) et TTL <= 24h",
+      "targetService": "policy-metadata-service",
+      "endpointPattern": "/api/metadata/shares",
+      "method": "POST",
+      "requiredClientCertCN": "share-gateway-service",
+      "requiredJwtSubject": "share-gateway-service",
+      "requiredRole": "ROLE_ORCHESTRATOR",
+      "enforceTierQuota": true,
+      "requireQuotaApproved": false,
+      "effect": "ALLOW"
+    },
+    {
+      "id": "POL-META-READ-02",
+      "description": "Seul share-gateway-service peut consulter ou revoquer les metadonnees d'un partage",
+      "targetService": "policy-metadata-service",
+      "endpointPattern": "/api/metadata/shares/*",
+      "method": "*",
+      "requiredClientCertCN": "share-gateway-service",
+      "requiredJwtSubject": "share-gateway-service",
+      "requiredRole": "ROLE_ORCHESTRATOR",
+      "enforceTierQuota": false,
+      "requireQuotaApproved": false,
+      "effect": "ALLOW"
+    },
+    {
+      "id": "POL-VAULT-PRESIGN-03",
+      "description": "Seul share-gateway-service avec validation ABAC prealable (quotaApproved=true) peut generer des URLs pre-signees S3 24h",
+      "targetService": "storage-vault-service",
+      "endpointPattern": "/api/vault/presign",
+      "method": "POST",
+      "requiredClientCertCN": "share-gateway-service",
+      "requiredJwtSubject": "share-gateway-service",
+      "requiredRole": "ROLE_ORCHESTRATOR",
+      "enforceTierQuota": true,
+      "requireQuotaApproved": true,
+      "effect": "ALLOW"
+    },
+    {
+      "id": "POL-VAULT-DOWNLOAD-04",
+      "description": "Seul share-gateway-service peut demander un lien de telechargement temporaire",
+      "targetService": "storage-vault-service",
+      "endpointPattern": "/api/vault/presign-download",
+      "method": "POST",
+      "requiredClientCertCN": "share-gateway-service",
+      "requiredJwtSubject": "share-gateway-service",
+      "requiredRole": "ROLE_ORCHESTRATOR",
+      "enforceTierQuota": false,
+      "requireQuotaApproved": false,
+      "effect": "ALLOW"
+    }
+  ]
+}

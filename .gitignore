@@ -20,3 +20,9 @@ __pycache__/
 *.py[cod]
 .venv/
 *.zip
+
+# PKI & Cles privees (generer via scripts/generate-certs.ps1)
+*.pem
+*.p12
+*.csr
+*.crt

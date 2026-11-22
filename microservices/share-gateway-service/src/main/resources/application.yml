@@ -1,0 +1,22 @@
+server:
+  port: 8441
+  ssl:
+    enabled: true
+    client-auth: none
+    key-store: classpath:certs/share-gateway-service.p12
+    key-store-password: changeit
+    key-store-type: PKCS12
+    trust-store: classpath:certs/truststore.p12
+    trust-store-password: changeit
+    trust-store-type: PKCS12
+
+spring:
+  application:
+    name: share-gateway-service
+
+zerotrust:
+  auth:
+    mode: local
+  services:
+    metadata-url: https://localhost:8442
+    vault-url: https://localhost:8443

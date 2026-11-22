@@ -1,0 +1,12 @@
+﻿# Maven & IDE
+target/
+*.jar.original
+.idea/
+*.iml
+.vscode/
+
+# Terraform (ne jamais pousser l'etat AWS)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log

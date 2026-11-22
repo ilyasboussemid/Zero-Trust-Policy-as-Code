@@ -1,0 +1,15 @@
+server:
+  port: 8442
+  ssl:
+    enabled: true
+    client-auth: need
+    key-store: classpath:certs/policy-metadata-service.p12
+    key-store-password: changeit
+    key-store-type: PKCS12
+    trust-store: classpath:certs/truststore.p12
+    trust-store-password: changeit
+    trust-store-type: PKCS12
+
+spring:
+  application:
+    name: policy-metadata-service
