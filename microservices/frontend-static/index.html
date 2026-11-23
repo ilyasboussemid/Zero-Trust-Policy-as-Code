@@ -1,0 +1,231 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZeroTrustPAC — Partage Sécurisé (24h)</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh; background: #070d19; color: #f8fafc;
+      display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .hidden { display: none !important; }
+    .card {
+      width: 100%; max-width: 420px; background: #111c33;
+      border: 1px solid #1e293b; border-radius: 14px; padding: 2rem;
+    }
+    h1, h2 { margin: 0 0 1rem; color: #38bdf8; }
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin: 0.85rem 0 0.3rem; }
+    input {
+      width: 100%; padding: 0.7rem 0.85rem; border-radius: 8px;
+      border: 1px solid #1e293b; background: #091020; color: #f8fafc; font-size: 0.95rem;
+    }
+    button {
+      margin-top: 1.25rem; width: 100%; padding: 0.75rem; border: none; border-radius: 8px;
+      background: #38bdf8; color: #031525; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+    }
+    .err {
+      margin-top: 0.9rem; padding: 0.65rem; border-radius: 8px;
+      background: rgba(239, 68, 68, 0.15); color: #fca5a5; font-size: 0.85rem;
+    }
+    .vault { max-width: 820px; width: 100%; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .drop {
+      border: 2px dashed #334155; background: #111c33; border-radius: 12px;
+      padding: 1.75rem; text-align: center; cursor: pointer;
+    }
+    .share-box {
+      margin-top: 1rem; background: #111c33; border: 1px solid #1e293b;
+      border-radius: 12px; padding: 1.25rem;
+    }
+    .link-out {
+      margin-top: 0.75rem; padding: 0.75rem; border-radius: 8px;
+      background: #091020; border: 1px solid #1e293b; word-break: break-all; font-size: 0.85rem;
+    }
+    .link-out a { color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <div id="recipientBox" class="card hidden">
+    <h2>Accès au Partage Protégé</h2>
+    <p style="font-size:0.85rem; color:#94a3b8; margin-top:0;">Entrez le mot de passe communiqué par l'expéditeur pour accéder aux médias (24h).</p>
+    <form onsubmit="unlockShare(event)">
+      <label for="unlockPassword">Mot de passe d'accès</label>
+      <input id="unlockPassword" type="password" required />
+      <button type="submit">Déverrouiller</button>
+      <div id="unlockErr" class="err hidden"></div>
+    </form>
+    <div id="unlockedResult" class="link-out hidden"></div>
+  </div>
+
+  <div id="loginBox" class="card">
+    <h1>Connexion</h1>
+    <form onsubmit="login(event)">
+      <label for="user">User</label>
+      <input id="user" type="email" value="ilyas@ensias.ma" required />
+      <label for="password">Password</label>
+      <input id="password" type="password" value="Ensias2026!" required />
+      <button type="submit">Se connecter</button>
+      <div id="loginErr" class="err hidden"></div>
+    </form>
+  </div>
+
+  <div id="vaultBox" class="vault hidden">
+    <div class="topbar">
+      <div><strong id="who"></strong> (<span id="tier"></span>)</div>
+      <button style="width:auto; margin:0; padding:0.45rem 0.9rem; background:#1e293b; color:#f8fafc;" onclick="logout()">Déconnexion</button>
+    </div>
+
+    <div class="share-box">
+      <div class="drop" onclick="document.getElementById('mediaFile').click()">
+        <input id="mediaFile" type="file" accept="image/*,video/*,.pdf,.zip" class="hidden" onchange="onMediaSelected(this.files[0])" />
+        <div id="dropLabel">Sélectionner une image ou une vidéo à partager (24h)</div>
+      </div>
+
+      <label for="shareSecret">Mot de passe d'accès pour le destinataire</label>
+      <input id="shareSecret" type="password" placeholder="Ex. SecretENSIAS2026" required />
+
+      <button onclick="createShare()">Générer l'URL sécurisée</button>
+      <div id="shareErr" class="err hidden"></div>
+      <div id="generatedShares"></div>
+    </div>
+  </div>
+
+  <script>
+    const REGION = "eu-west-3";
+    const CLIENT_ID = "46ofavtntvjuqaugfph7c0e4lb";
+    let GATEWAY_URL = "https://localhost:8441";
+    let jwtToken = "";
+    let pickedFile = null;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("gateway")) GATEWAY_URL = params.get("gateway").replace(/\/$/, "");
+    const activeShareId = params.get("shareId");
+
+    if (activeShareId) {
+      document.getElementById("loginBox").classList.add("hidden");
+      document.getElementById("recipientBox").classList.remove("hidden");
+    }
+
+    function parseJwt(jwt) {
+      try { return JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); }
+      catch { return {}; }
+    }
+
+    async function login(e) {
+      e.preventDefault();
+      const err = document.getElementById("loginErr");
+      err.classList.add("hidden");
+      const username = document.getElementById("user").value.trim();
+      const password = document.getElementById("password").value;
+      try {
+        const res = await fetch(`https://cognito-idp.${REGION}.amazonaws.com/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-amz-json-1.1",
+            "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth"
+          },
+          body: JSON.stringify({
+            AuthFlow: "USER_PASSWORD_AUTH",
+            ClientId: CLIENT_ID,
+            AuthParameters: { USERNAME: username, PASSWORD: password }
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Échec de connexion");
+        jwtToken = data.AuthenticationResult.IdToken;
+        const tier = (parseJwt(jwtToken)["custom:subscription_tier"] || "STANDARD").toUpperCase();
+        document.getElementById("who").textContent = username;
+        document.getElementById("tier").textContent = tier;
+        document.getElementById("loginBox").classList.add("hidden");
+        document.getElementById("vaultBox").classList.remove("hidden");
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.remove("hidden");
+      }
+    }
+
+    function logout() {
+      jwtToken = "";
+      pickedFile = null;
+      document.getElementById("vaultBox").classList.add("hidden");
+      document.getElementById("loginBox").classList.remove("hidden");
+    }
+
+    function onMediaSelected(file) {
+      if (!file) return;
+      pickedFile = file;
+      document.getElementById("dropLabel").textContent = `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} Mo)`;
+    }
+
+    async function createShare() {
+      const err = document.getElementById("shareErr");
+      err.classList.add("hidden");
+      const secret = document.getElementById("shareSecret").value;
+      if (!pickedFile) {
+        err.textContent = "Choisissez d'abord une image ou une vidéo.";
+        err.classList.remove("hidden");
+        return;
+      }
+      if (!secret) {
+        err.textContent = "Définissez un mot de passe pour le destinataire.";
+        err.classList.remove("hidden");
+        return;
+      }
+      try {
+        const res = await fetch(`${GATEWAY_URL}/api/shares/protected`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${jwtToken}` },
+          body: JSON.stringify({
+            folderName: pickedFile.name,
+            fileSize: pickedFile.size,
+            sharePassword: secret
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erreur création du partage");
+        if (data.uploadUrl) {
+          await fetch(data.uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": pickedFile.type || "application/octet-stream" },
+            body: pickedFile
+          });
+        }
+        const baseUrl = window.location.href.split("?")[0];
+        const shareUrl = `${baseUrl}?shareId=${encodeURIComponent(data.shareId)}`;
+        const box = document.createElement("div");
+        box.className = "link-out";
+        box.innerHTML = `<div><strong>${data.fileName}</strong> (expire dans 24h)</div><div style="margin-top:0.35rem;"><a href="${shareUrl}" target="_blank">${shareUrl}</a></div>`;
+        document.getElementById("generatedShares").prepend(box);
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.remove("hidden");
+      }
+    }
+
+    async function unlockShare(e) {
+      e.preventDefault();
+      const err = document.getElementById("unlockErr");
+      const out = document.getElementById("unlockedResult");
+      err.classList.add("hidden");
+      out.classList.add("hidden");
+      const password = document.getElementById("unlockPassword").value;
+      try {
+        const res = await fetch(`${GATEWAY_URL}/api/shares/${encodeURIComponent(activeShareId)}/unlock`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Mot de passe incorrect");
+        out.innerHTML = `<div><strong>${data.fileName}</strong> déverrouillé</div><div style="margin-top:0.4rem;"><a href="${data.downloadUrl || "#"}" target="_blank">Accéder / Télécharger le média</a></div>`;
+        out.classList.remove("hidden");
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.remove("hidden");
+      }
+    }
+  </script>
+</body>
+</html>

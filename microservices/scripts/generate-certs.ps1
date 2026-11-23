@@ -45,3 +45,4 @@ foreach ($svc in $services) {
 }
 Write-Host "PKI mTLS et cles JWT regenerees avec succes !" -ForegroundColor Green
 
+
