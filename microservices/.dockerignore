@@ -1,0 +1,12 @@
+﻿**/target/classes/
+**/target/generated-sources/
+**/target/maven-archiver/
+**/target/maven-status/
+*.jar.original
+**/.mvn/
+.git/
+**/.idea/
+**/*.iml
+.vscode/
+infra-aws/.terraform/
+infra-aws/*.tfstate*

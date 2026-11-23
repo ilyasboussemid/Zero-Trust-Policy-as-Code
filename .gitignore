@@ -26,3 +26,5 @@ __pycache__/
 *.p12
 *.csr
 *.crt
+
+.vscode/

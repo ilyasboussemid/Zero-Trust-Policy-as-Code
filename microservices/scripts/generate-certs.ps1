@@ -1,4 +1,4 @@
-# Regenere la PKI mTLS (CA + 3 keystores + truststore) et les cles RSA JWT
+﻿# Regenere la PKI mTLS (CA + 3 keystores + truststore) et les cles RSA JWT
 $ErrorActionPreference = "Stop"
 $pkiDir = "$PSScriptRoot\..\certs-pki"
 $password = "changeit"
@@ -18,13 +18,13 @@ $services = @("share-gateway-service", "policy-metadata-service", "storage-vault
 foreach ($svc in $services) {
     keytool -genkeypair -alias $svc -keyalg RSA -keysize 2048 -validity 365 `
       -dname "CN=$svc, OU=ENSIAS, O=ZeroTrustShare, C=MA" `
-      -ext "SubjectAlternativeName=dns:localhost,ip:127.0.0.1" `
+      -ext "SubjectAlternativeName=dns:localhost,dns:policy-metadata-service,dns:storage-vault-service,dns:share-gateway-service,ip:127.0.0.1" `
       -keystore "$pkiDir\$svc.p12" -storetype PKCS12 -storepass $password -keypass $password
 
     keytool -certreq -alias $svc -keystore "$pkiDir\$svc.p12" -storepass $password -file "$pkiDir\$svc.csr"
     keytool -gencert -alias zerotrust-ca -keystore "$pkiDir\ca.p12" -storepass $password `
       -infile "$pkiDir\$svc.csr" -outfile "$pkiDir\$svc.crt" `
-      -ext "SubjectAlternativeName=dns:localhost,ip:127.0.0.1" -ext "ExtendedKeyUsage=serverAuth,clientAuth" -rfc -validity 365
+      -ext "SubjectAlternativeName=dns:localhost,dns:policy-metadata-service,dns:storage-vault-service,dns:share-gateway-service,ip:127.0.0.1" -ext "ExtendedKeyUsage=serverAuth,clientAuth" -rfc -validity 365
 
     keytool -importcert -noprompt -alias zerotrust-ca -file "$pkiDir\ca.crt" -keystore "$pkiDir\$svc.p12" -storepass $password
     keytool -importcert -noprompt -alias $svc -file "$pkiDir\$svc.crt" -keystore "$pkiDir\$svc.p12" -storepass $password
@@ -44,3 +44,4 @@ foreach ($svc in $services) {
     }
 }
 Write-Host "PKI mTLS et cles JWT regenerees avec succes !" -ForegroundColor Green
+

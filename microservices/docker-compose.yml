@@ -1,0 +1,45 @@
+services:
+  policy-metadata-service:
+    build:
+      context: .
+      dockerfile: policy-metadata-service/Dockerfile
+    container_name: policy-metadata-service
+    ports:
+      - "8442:8442"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-default}
+    networks:
+      - zero-trust-net
+
+  storage-vault-service:
+    build:
+      context: .
+      dockerfile: storage-vault-service/Dockerfile
+    container_name: storage-vault-service
+    ports:
+      - "8443:8443"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-default}
+    networks:
+      - zero-trust-net
+
+  share-gateway-service:
+    build:
+      context: .
+      dockerfile: share-gateway-service/Dockerfile
+    container_name: share-gateway-service
+    ports:
+      - "8441:8441"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-default}
+      - METADATA_SERVICE_URL=https://policy-metadata-service:8442
+      - VAULT_SERVICE_URL=https://storage-vault-service:8443
+    depends_on:
+      - policy-metadata-service
+      - storage-vault-service
+    networks:
+      - zero-trust-net
+
+networks:
+  zero-trust-net:
+    driver: bridge

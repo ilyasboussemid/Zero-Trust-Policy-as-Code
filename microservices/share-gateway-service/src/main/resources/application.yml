@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8441
   ssl:
     enabled: true
@@ -18,5 +18,6 @@ zerotrust:
   auth:
     mode: local
   services:
-    metadata-url: https://localhost:8442
-    vault-url: https://localhost:8443
+    metadata-url: ${METADATA_SERVICE_URL:https://localhost:8442}
+    vault-url: ${VAULT_SERVICE_URL:https://localhost:8443}
+
